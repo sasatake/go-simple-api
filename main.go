@@ -7,6 +7,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", Index)
+	http.HandleFunc("/db/ping", Ping)
 
 	port := "8080"
 	log.Printf("Listening on port %s", port)

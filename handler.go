@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 type Response struct {
@@ -40,4 +45,35 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("Hello %s", name)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, createResponseJson(http.StatusOK, message))
+}
+
+func Ping(w http.ResponseWriter, r *http.Request) {
+
+	const uri = "mongodb://mongo:mongo@localhost:27017/?maxPoolSize=20&w=majority"
+
+	// Create a new client and connect to the server
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, createResponseJson(http.StatusInternalServerError, err.Error()))
+		return
+	}
+
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, createResponseJson(http.StatusInternalServerError, err.Error()))
+			return
+		}
+	}()
+
+	// Ping the primary
+	if err := client.Ping(context.TODO(), readpref.Primary()); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, createResponseJson(http.StatusInternalServerError, err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, createResponseJson(http.StatusOK, "Successfully connected and pinged."))
 }
