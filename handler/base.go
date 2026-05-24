@@ -6,7 +6,9 @@ import (
 	"net/http"
 )
 
-const uri = "mongodb://mongo:mongo@localhost:27017/?maxPoolSize=20&w=majority"
+// uri はテストから testcontainers の接続文字列で上書きするため var にしている。
+var uri = "mongodb://mongo:mongo@localhost:27017/?maxPoolSize=20&w=majority"
+
 const databaseName = "main"
 const userCollection = "user"
 
