@@ -16,10 +16,10 @@ type UsersResponse struct {
 }
 
 type User struct {
-	Id       string `json:"id" bson:"_id"`
-	Name     string `json:"name" bson:"name"`
-	Nickname string `json:"nickname" bson:"nickname"`
-	Mail     string `json:"mail" bson:"mail"`
+	Id       bson.ObjectID `json:"id" bson:"_id"`
+	Name     string        `json:"name" bson:"name"`
+	Nickname string        `json:"nickname" bson:"nickname"`
+	Mail     string        `json:"mail" bson:"mail"`
 }
 
 func ListUser(w http.ResponseWriter, r *http.Request) {
@@ -39,9 +39,14 @@ func ListUser(w http.ResponseWriter, r *http.Request) {
 
 	collection := client.Database(databaseName).Collection(userCollection)
 	cursor, err := collection.Find(context.TODO(), options.Find())
+	if err != nil {
+		response(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	var users []User
 	if err = cursor.All(context.TODO(), &users); err != nil {
 		response(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	responseListUsers(w, users)
