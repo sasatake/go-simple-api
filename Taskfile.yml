@@ -1,0 +1,56 @@
+version: '3'
+
+# colima などで docker context が標準以外を指す環境向けに、現在の
+# docker context の endpoint を DOCKER_HOST として export する。
+# testcontainers-go から見たコンテナ内 socket は /var/run/docker.sock。
+env:
+  DOCKER_HOST:
+    sh: docker context inspect | jq -r '.[0].Endpoints.docker.Host // empty'
+  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+
+tasks:
+  default:
+    desc: 利用可能なタスクを表示
+    cmds:
+      - task --list
+    silent: true
+
+  run:
+    desc: サーバ起動 (:8080)。事前に task mongo:up を実行
+    cmds:
+      - go run main.go
+
+  build:
+    desc: バイナリビルド
+    cmds:
+      - go build -o go-simple-api
+
+  test:
+    desc: 全テスト実行 (mongo は testcontainers-go が自動起動)
+    cmds:
+      - go test ./...
+
+  test:v:
+    desc: -v 付きでテスト実行
+    cmds:
+      - go test -v ./...
+
+  vet:
+    desc: go vet
+    cmds:
+      - go vet ./...
+
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - go mod tidy
+
+  mongo:up:
+    desc: 開発用 MongoDB を起動 (docker compose)
+    cmds:
+      - docker compose up -d
+
+  mongo:down:
+    desc: 開発用 MongoDB を停止
+    cmds:
+      - docker compose down
