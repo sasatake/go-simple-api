@@ -3,13 +3,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type UsersResponse struct {
@@ -24,29 +22,17 @@ type User struct {
 	Mail     string `json:"mail" bson:"mail"`
 }
 
-func createListUsersResponseJson(users []User) string {
-	response := UsersResponse{Response: Response{Status: http.StatusOK, Message: "list users"}, Users: users}
-	responseJsonBytes, err := json.MarshalIndent(response, "", "  ")
-	if err != nil {
-		fmt.Println(err)
-		return err.Error()
-	}
-	return string(responseJsonBytes)
-}
-
 func ListUser(w http.ResponseWriter, r *http.Request) {
 
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
+	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, createSimpleResponseJson(http.StatusInternalServerError, err.Error()))
+		response(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	defer func() {
 		if err = client.Disconnect(context.TODO()); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, createSimpleResponseJson(http.StatusInternalServerError, err.Error()))
+			response(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 	}()
@@ -55,40 +41,30 @@ func ListUser(w http.ResponseWriter, r *http.Request) {
 	cursor, err := collection.Find(context.TODO(), options.Find())
 	var users []User
 	if err = cursor.All(context.TODO(), &users); err != nil {
-		panic(err)
+		response(w, http.StatusInternalServerError, err.Error())
 	}
 
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, createListUsersResponseJson(users))
+	responseListUsers(w, users)
 }
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprint(w, createSimpleResponseJson(http.StatusMethodNotAllowed, "method not allowed."))
-		return
-	}
-
 	var user User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, createSimpleResponseJson(http.StatusBadRequest, "bad request body."))
+		response(w, http.StatusBadRequest, "bad request body.")
 		return
 	}
 
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
+	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, createSimpleResponseJson(http.StatusInternalServerError, err.Error()))
+		response(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	defer func() {
 		if err = client.Disconnect(context.TODO()); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, createSimpleResponseJson(http.StatusInternalServerError, err.Error()))
+			response(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 	}()
@@ -100,9 +76,12 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		{Key: "mail", Value: user.Mail},
 	}
 	result, err := collection.InsertOne(context.TODO(), doc)
+	if err != nil {
+		response(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
-	if oid, ok := result.InsertedID.(primitive.ObjectID); ok {
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprint(w, createSimpleResponseJson(http.StatusCreated, oid.Hex()))
+	if oid, ok := result.InsertedID.(bson.ObjectID); ok {
+		response(w, http.StatusCreated, oid.Hex())
 	}
 }

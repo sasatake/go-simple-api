@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 )
 
 const uri = "mongodb://mongo:mongo@localhost:27017/?maxPoolSize=20&w=majority"
@@ -14,12 +15,16 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-func createSimpleResponseJson(status int, message string) string {
+func response(w http.ResponseWriter, status int, message string) {
 	response := Response{Status: status, Message: message}
-	responseJsonBytes, err := json.MarshalIndent(response, "", "  ")
-	if err != nil {
-		fmt.Println(err)
-		return err.Error()
-	}
-	return string(responseJsonBytes)
+	responseJsonBytes, _ := json.MarshalIndent(response, "", "  ")
+	w.WriteHeader(status)
+	fmt.Fprint(w, string(responseJsonBytes))
+}
+
+func responseListUsers(w http.ResponseWriter, users []User) {
+	response := UsersResponse{Response: Response{Status: http.StatusOK, Message: "list users"}, Users: users}
+	responseJsonBytes, _ := json.MarshalIndent(response, "", "  ")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(responseJsonBytes))
 }
